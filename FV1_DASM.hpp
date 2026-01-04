@@ -553,6 +553,7 @@ void execute_program(FV1 *fv1)
     }
 
     auto op = (OP *)fv1->rom;
+    auto oplast = op + 128;
 
 #define DISPATCH() \
     goto * (++op)->label;
@@ -612,6 +613,9 @@ _OP_XOR:
     DISPATCH();
 _OP_SKP:
     op += fv1->SKP(op->arg0, op->arg1);
+    if (op >= oplast) {
+      return;
+    }
     DISPATCH();
 _OP_WLDS:
     fv1->WLDS(op->arg0, op->arg1, op->arg2);
@@ -720,7 +724,7 @@ extern "C" void *fv1_load(FV1 *fv1, const uint8_t *prog, void *(*malloc)(size_t 
             }
             else if (instr[0] == OP_RDAX)
             {
-                if (fx[j - 1].label == _dispatch_table[OP_WRAX] && fx[j - 1].arg1 == 0)
+                if (j > 0 && fx[j - 1].label == _dispatch_table[OP_WRAX] && fx[j - 1].arg1 == 0)
                 {
                     fx[j - 1].label = _dispatch_table[D_OP_WRAX_RDAX];
                     fx[j - 1].reg1 = &fv1->regs[instr[1]];
@@ -758,7 +762,8 @@ extern "C" void *fv1_load(FV1 *fv1, const uint8_t *prog, void *(*malloc)(size_t 
             fx[j++] = {_dispatch_table[D_OP_NOP], 0, 0, 0}; //_OP_NOP
     }
 
-    fx[j] = {_dispatch_table[D_OP_END], 0, 0, 0}; //_OP_END
+    while (j < 129)
+        fx[j++] = {_dispatch_table[D_OP_END], 0, 0, 0}; //_OP_END
 
     fv1->setFx(execute_program);
     return fv1->rom;
